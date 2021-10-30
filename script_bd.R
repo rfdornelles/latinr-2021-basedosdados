@@ -1,20 +1,5 @@
-# Curso Equalitas - Introdução ao R
-# Aula 05 - 07/10/2021
-# Começando com a Base dos Dados
-
-# Nosso material ----------------------------------------------------------
-
-# https://drive.google.com/drive/folders/1R5FpScbMOSRF0VCsBZdjJuGz3bf26g1h?usp=sharing
-
-# Obs.: Esse script é um compilado de conteúdo utilizando material
-# disponibilizado pela Curso-R (http://curso-r.com) e de scripts elaborados
-# pelos professores Jonatas Varella, Fernando Meireles e Neylson Crepalde.
-
-# Como utilizar esse script? ----------------------------------------------
-
-# Ao invés de utilizar slides, faremos tudo aqui pelo R. Vá acompanhando
-# e acrescentando suas próprias anotações. Lembre-se de utilizar # antes
-# de cada linha para que o R a ignore ou então coloque a # após o comando.
+# LatinR 2021 - Base dos Dados
+# Demonstração de uso do pacote
 
 # Referências: ------------------------------------------------------------
 # https://basedosdados.github.io/mais/access_data_bq/#primeiros-passos
@@ -28,14 +13,12 @@
 # Ela roda em cima da interface do Google BigQuery e posso utilizá-la para
 # consumir e processar dados.
 
-
 # Google Big Query --------------------------------------------------------
 
 # É um produto do Google dentro das soluções de nuvem (cloud computing).
 # Eles "alugam" a interface deles para usuários comuns. 
 # O consumo de dados é pago, mas na prática sai de graça pois o limite de dados
 # é de 1 TB por mês. Ou seja, é muito difícil bater esse limite.
-
 
 # Pacote {basedosdados} ---------------------------------------------------
 
@@ -52,7 +35,7 @@ install.packages("basedosdados")
 # https://console.cloud.google.com/projectselector2/home/dashboard
 # Devemos ter um project-id para usar com a BD.
 # Meu project-id vai ser usado como se fosse uma "comanda".
-# equalitasdornelles1008
+# 
 
 # vamos trabalhar com o Atlas do Esgoto: https://basedosdados.org/dataset/e438dc92-b97c-4e48-ab72-153bf4cf73cc
 # Rodando o pacote --------------------------------------------------------
@@ -62,7 +45,7 @@ library(basedosdados)
 
 
 # Vou setar meu billing-id, que é o id do projeto:
-set_billing_id("equalitasdornelles1008")
+set_billing_id("rfdornelles-bq")
 
 
 # Procurar uma base de interesse ------------------------------------------
@@ -82,33 +65,27 @@ bigrquery::bq_auth()
 
 # Download de direto ------------------------------------------------------
 
-basedosdados::download(query = "
-         SELECT * FROM `basedosdados.br_ana_atlas_esgotos.municipio` 
-         WHERE sigla_uf = 'AC'
-         ", 
-         path =  "dados/esgotos_exemplo.csv")
-
-# Rodar um comando SQL ----------------------------------------------------
-
+# Crio uma query SQL simples:
 query <- "
   SELECT * FROM `basedosdados.br_ana_atlas_esgotos.municipio` 
   WHERE sigla_uf = 'AC'
   "
 
-esgostos_acre <- basedosdados::read_sql(query)
+basedosdados::download(query, path = "dados_esgoto.csv")
 
-base_ac <- read_sql(query) # lembre de salvar em um objeto
+# Rodar um comando SQL ----------------------------------------------------
+
+esgotos_acre <- basedosdados::read_sql(query)
 
 # Interface com dplyr -----------------------------------------------------
 
 # Agora a BD também funciona com a interface do {dplyr}, de forma que
 # podemos manusear as bases usando os comandos do pacote que já conhecemos!
 
-
 # O primeiro passo é conectar com a base de interesse com o comando
 
 # Agora, posso realizar as operações que quiser com o objeto
-# Contudo, ele está remoto e não no meu computador, por isso é um pouco limitado
+# Contudo, ele está remoto e não no meu computador
 
 nome_base <- "br_ana_atlas_esgotos.municipio"
 
@@ -126,6 +103,10 @@ base_remota_preparada <- base_remota %>%
   select(id_municipio, sigla_uf, prop_atendimento) 
 
 
+# posso também verificar o que está sendo feito com o comando show_query do
+# {dplyr}
+dplyr::show_query(base_remota_preparada)
+
 # base auxiliar de municipios
 
 base_auxiliar <- bdplyr("br_bd_diretorios_brasil.municipio")
@@ -139,10 +120,6 @@ base_auxiliar <- base_auxiliar %>%
 
 base_junta <- base_remota_preparada %>% 
   left_join(base_auxiliar, by = "id_municipio")
-
-# coletar os resultados
-
-base_esgoto_com_municipios <- bd_collect(base_junta)
 
 # Coletar os dados ou salvar em disco -------------------------------------
 
@@ -163,7 +140,6 @@ bd_write(
   path = "dados/base_salva.xlsx"
 )
 
-
 # Outro exemplo -----------------------------------------------------------
 
 # o billing_id já foi setado
@@ -182,7 +158,7 @@ tabela_auxilio <- base_remota %>%
   select(mes, sigla_uf, valor_beneficio, enquadramento) %>% 
   group_by(sigla_uf) %>% 
   summarise(
-    valor_total = sum(valor_beneficio),
+    valor_total = sum(valor_beneficio, na.rm = TRUE),
     qnt_beneficiarios = n()
   ) 
 
@@ -206,9 +182,13 @@ tabela_auxilio_muni <- base_remota %>%
   summarise(
     valor_total = sum(valor_beneficio),
     qnt_beneficiarios = n()
-  ) %>% 
-  bd_collect(tabela_auxilio)
+  ) 
 
+# coletar o dado
+
+tabela_auxilio_muni <- bd_collect(tabela_auxilio_muni)
+
+# prosseguir a análise
 tabela_auxilio_coletada_muni <- tabela_auxilio_muni %>% 
   mutate(
     valor_medio = valor_total / qnt_beneficiarios
@@ -218,58 +198,7 @@ tabela_auxilio_coletada_muni <- tabela_auxilio_muni %>%
 tabela_auxilio_coletada_muni %>% 
   arrange(valor_medio)
 
-# Exercício 1 -------------------------------------------------------------
 
-## A BD possui tabelas de diretórios, muito úteis, para facilitar a integração
-# entre outras tabelas. Isso permitirá fazer cruzamentos mútliplos entre bases
-# bem diferentes e aparentemente não relacionadas: por exemplo, dados de votação e
-# segurança pública.
-
-# Vá ao site da BD e localize e tabela contendo o diretório de municípios.
-# Anote abaixo o nome:
-
-print("O diretório de municípios da BD se chama: xxxxxxxxxxx")
-
-# 1) Carregue os pacotes e ative seu billing-id.
-
-# 2) Conecte remotamente com a base e salve em um objeto.
-
-# 3) Salve em disco essa tabela, no formato de sua preferência.
-
-# 4) Explore um pouco essa tabela. O que você entende que são as colunas?
-
-# 5) Qual é o id de seu município?
-
-# 6) Qual é a região de saúde do município de Ipira - SC?
-
-# 7) Selecione apenas o nome dos municípios e a sigla da UF. Qual é o 3º
-# estado com mais municípios? E qual o 2º que tem menos?
-
-# Exercício 2 ---------------------------------------------------------------
-
-## Escolha uma tabela disponível no BD+ (https://basedosdados.org/dataset, 
-# certifique-se que o filtro por "Tabelas tratadas" está ativo).
-
-# Anote abaixo as strings que levam a ela para facilitar
-# <projeto>.<id_conjunto>.<id_tabela>
-
-# Ex: basedosdados.br_mc_indicadores.transferencias_municipio 
-
-
-## Carregue os pacotes pertinentes
-
-## Faça a importação da tabela que você escolheu no modo remoto (bdplyr)
-
-## Explore inicialmente os seus dados. Quais as colunas? Quais as classes?
-
-## Faça a seleção de algumas colunas
-
-## Faça algum filtro
-
-## É necessário/conveniente modificar a classe de alguma coluna? Se for, faça isso.
-
-## Com summarise, faça alguma análise como média, valor mínimo/máximo, contagem,
-# etc
 
 
 
