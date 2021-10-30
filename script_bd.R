@@ -37,15 +37,12 @@ install.packages("basedosdados")
 # Meu project-id vai ser usado como se fosse uma "comanda".
 # 
 
-# vamos trabalhar com o Atlas do Esgoto: https://basedosdados.org/dataset/e438dc92-b97c-4e48-ab72-153bf4cf73cc
 # Rodando o pacote --------------------------------------------------------
 
-library(tidyverse)
 library(basedosdados)
 
-
 # Vou setar meu billing-id, que é o id do projeto:
-set_billing_id("rfdornelles-bq")
+set_billing_id("bd-latinr-2021")
 
 
 # Procurar uma base de interesse ------------------------------------------
@@ -53,15 +50,11 @@ set_billing_id("rfdornelles-bq")
 # A estrutura dos dados do BD+ é: <entidade>.<tabela>
 # Por exemplo: br_senado_cpipandemia.discursos
 # Vamos no site escolher uma base:
-# basedosdados.br_inep_censo_escolar.escola
+# https://basedosdados.org/
 
 # Vamos usar:
-# dataset: br_ana_atlas_esgotos
-# tabela: municipio
-
-# Na primeira vez que rodar é esperado que o R ative a interface com o google
-# e faça meu login. Se não funcionar:
-bigrquery::bq_auth()
+# dataset: 
+# tabela: 
 
 # Download de direto ------------------------------------------------------
 
@@ -70,8 +63,12 @@ query <- "
   SELECT * FROM `basedosdados.br_ana_atlas_esgotos.municipio` 
   WHERE sigla_uf = 'AC'
   "
+download(query, path = "dados/dados_esgoto.csv")
 
-basedosdados::download(query, path = "dados_esgoto.csv")
+# Na primeira vez que rodar é esperado que o R ative a interface com o google
+# e faça meu login. Se não funcionar:
+bigrquery::bq_auth()
+
 
 # Rodar um comando SQL ----------------------------------------------------
 
@@ -87,12 +84,15 @@ esgotos_acre <- basedosdados::read_sql(query)
 # Agora, posso realizar as operações que quiser com o objeto
 # Contudo, ele está remoto e não no meu computador
 
+# Carregar o tidyverse
+library(tidyverse)
+
+# escolher a base
 nome_base <- "br_ana_atlas_esgotos.municipio"
 
 base_remota <- basedosdados::bdplyr(nome_base)
 
 base_remota
-glimpse(base_remota)
 
 # nosso objetivo é verificar a população atendida por esgoto nos municipios
 
