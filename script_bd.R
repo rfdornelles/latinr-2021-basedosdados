@@ -44,17 +44,10 @@ library(basedosdados)
 # Vou setar meu billing-id, que é o id do projeto:
 set_billing_id("bd-latinr-2021")
 
-
 # Procurar uma base de interesse ------------------------------------------
 
-# A estrutura dos dados do BD+ é: <entidade>.<tabela>
-# Por exemplo: br_senado_cpipandemia.discursos
 # Vamos no site escolher uma base:
 # https://basedosdados.org/
-
-# Vamos usar:
-# dataset: 
-# tabela: 
 
 # Download de direto ------------------------------------------------------
 
@@ -68,7 +61,6 @@ download(query, path = "dados/dados_esgoto.csv")
 # Na primeira vez que rodar é esperado que o R ative a interface com o google
 # e faça meu login. Se não funcionar:
 bigrquery::bq_auth()
-
 
 # Rodar um comando SQL ----------------------------------------------------
 
@@ -94,55 +86,37 @@ base_remota <- basedosdados::bdplyr(nome_base)
 
 base_remota
 
-# nosso objetivo é verificar a população atendida por esgoto nos municipios
+# filtar a base
 
 base_remota_preparada <- base_remota %>% 
-  mutate(
-    prop_atendimento = populacao_atendida_2035 / populacao_urbana_2035
-  ) %>% 
-  select(id_municipio, sigla_uf, prop_atendimento) 
-
-
+  filter(silga_uf == "AC")
+ 
 # posso também verificar o que está sendo feito com o comando show_query do
 # {dplyr}
 dplyr::show_query(base_remota_preparada)
-
-# base auxiliar de municipios
-
-base_auxiliar <- bdplyr("br_bd_diretorios_brasil.municipio")
-
-base_auxiliar <- base_auxiliar %>% 
-  select(
-    id_municipio, nome, regiao
-  )
-
-# juntar as duas bases
-
-base_junta <- base_remota_preparada %>% 
-  left_join(base_auxiliar, by = "id_municipio")
 
 # Coletar os dados ou salvar em disco -------------------------------------
 
 # Depois de realizar as operações que quiser, posso "coletar" os dados, ou seja
 # mandar baixar do servidor para a memória do meu computador:
 
-base_esgoto <- bd_collect(base_junta)
+base_esgoto <- bd_collect(base_remota_preparada)
 
 # Posso também salvar diretamente em disco:
 
-bd_write_rds(base_junta, path = "dados/base_esgoto_preparada.rds")
+bd_write_rds(base_remota_preparada, path = "dados/base_esgoto_preparada.rds")
 
 # Ou usar qualquer outra função de escrita:
 # exemplo salvado em .xlsx
 bd_write(
-  base_junta,
+  base_remota_preparada,
   .write_fn = writexl::write_xlsx,
   path = "dados/base_salva.xlsx"
 )
 
 # Outro exemplo -----------------------------------------------------------
 
-# o billing_id já foi setado
+# auxilio emergencial - 257.193.121 de linhas
 
 # definir a tabela que vou operar:
 nome_tabela <- "br_mc_auxilio_emergencial.microdados"
@@ -164,39 +138,7 @@ tabela_auxilio <- base_remota %>%
 
 tabela_auxilio <- bd_collect(tabela_auxilio)
 
-tabela_auxilio_coletada <- tabela_auxilio %>% 
-  mutate(
-    valor_medio = valor_total / qnt_beneficiarios
-  ) %>% 
-  arrange(-valor_medio) 
-
 tabela_auxilio_coletada
-
-
-# Ver por municipio -------------------------------------------------------
-
-# valor médio do beneficio pago por estado
-tabela_auxilio_muni <- base_remota %>% 
-  select(mes, id_municipio, valor_beneficio, enquadramento) %>% 
-  group_by(id_municipio) %>% 
-  summarise(
-    valor_total = sum(valor_beneficio),
-    qnt_beneficiarios = n()
-  ) 
-
-# coletar o dado
-
-tabela_auxilio_muni <- bd_collect(tabela_auxilio_muni)
-
-# prosseguir a análise
-tabela_auxilio_coletada_muni <- tabela_auxilio_muni %>% 
-  mutate(
-    valor_medio = valor_total / qnt_beneficiarios
-  ) %>% 
-  arrange(-valor_medio) 
-
-tabela_auxilio_coletada_muni %>% 
-  arrange(valor_medio)
 
 
 
