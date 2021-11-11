@@ -89,7 +89,7 @@ base_remota
 # filtar a base
 
 base_remota_preparada <- base_remota %>% 
-  filter(silga_uf == "AC")
+  filter(sigla_uf == "AC")
  
 # posso também verificar o que está sendo feito com o comando show_query do
 # {dplyr}
