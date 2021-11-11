@@ -138,8 +138,7 @@ tabela_auxilio <- base_remota %>%
 
 tabela_auxilio <- bd_collect(tabela_auxilio)
 
-tabela_auxilio_coletada
-
+tabela_auxilio
 
 
 
